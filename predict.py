@@ -2,9 +2,25 @@ from ultralytics import YOLO
 import os
 import shutil
 
-model_path = input("Enter model path (default='yolov8n.pt'): ")
+def_model = 'yolov8n.pt'
+
+predict_folders = [f for f in os.listdir('runs/detect/') if f.startswith('train') and len(f) > 5]
+if len(predict_folders) > 1:
+    predict_nums = [int(f[5:]) for f in predict_folders]
+    next_predict_num = max(predict_nums)
+    for num in predict_nums[::-1]:
+        model_dir = 'runs/detect/train' + str(num) + '/weights/best.pt'
+        if os.path.exists(model_dir):
+            def_model = model_dir
+            break
+        else:
+            print(model_dir, 'does not exist')
+elif os.path.exists('runs/detect/train/weights/best.pt'):
+    def_model = 'runs/detect/train/weights/best.pt'
+
+model_path = input(f"Enter model path (default='{def_model}'): ")
 if not model_path:
-    model_path = 'yolov8n.pt'
+    model_path = def_model
 
 save_dir = input("Enter save directory (default='predictions/'): ")
 if not save_dir:
@@ -23,16 +39,15 @@ if not os.listdir(images_path):
     exit()
 
 
-move_images = input("Move images to predict directory? (Y/N, default='N'): ").upper()
-if move_images not in ['Y', 'N']:
-    move_images = 'N'
-
+images_action = input("Copy[C] / Move[M] images to predict directory? (M/C, default='N'): ").upper()
+if images_action not in ['C', 'M', 'N']:
+    images_action = 'N'
 
 model = YOLO(model_path)
 
 images = [f for f in os.listdir(images_path) if f.endswith(('.jpg', '.jpeg', '.png'))]
 
-if move_images == 'Y':
+if images_action != 'Y':
     predict_dir = os.path.join(save_dir, "predict")
     if os.path.isdir(predict_dir):
         if not os.path.isdir(os.path.join(save_dir, "predict2")):
@@ -46,8 +61,12 @@ if move_images == 'Y':
 
 for image in images:
     model.predict(source=os.path.join(images_path, image), project=save_dir, save_txt=True, save_conf=False)
-    if move_images == 'Y':
+    if images_action == 'M':
         if not os.path.isdir(images_dir):
             os.makedirs(images_dir)
         shutil.move(os.path.join(images_path, image), os.path.join(images_dir, image))
+    elif images_action == 'C':
+        if not os.path.isdir(images_dir):
+            os.makedirs(images_dir)
+        shutil.copy(os.path.join(images_path, image), os.path.join(images_dir, image))
 
